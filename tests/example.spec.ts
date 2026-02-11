@@ -1,18 +1,30 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "playwright-test-coverage";
 
-test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test("test", async ({ page }) => {
+  const menuResponse = [
+    { title: "Veggie", description: "A garden of delight" },
+  ];
 
-  // Expect a title "to contain" a substring.
-  await expect(page).toHaveTitle(/Playwright/);
-});
+  // Mock out the service
+  await page.route("*/**/api/order/menu", async (route) => {
+    expect(route.request().method()).toBe("GET");
+    await route.fulfill({ json: menuResponse });
+  });
 
-test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+  await page.goto("https://pizza.pizzagavinshelley3.click/");
+  await expect(page.getByText("Pizza")).toBeVisible();
+  await expect(page.getByText("🍕")).toBeVisible();
 
-  // Click the get started link.
-  await page.getByRole('link', { name: 'Get started' }).click();
+  const expected = "🍕🍕🍕🍕🍕";
+  await page
+    .getByRole("button", { name: "+" })
+    .click({ clickCount: [...expected].length - 1 });
+  await expect(page.getByText(expected)).toHaveText(expected);
 
-  // Expects page to have a heading with the name of Installation.
-  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeEnabled();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await expect(page.getByRole("list")).toContainText(
+    "Veggie - A garden of delight",
+  );
+  await expect(page.getByRole("button", { name: "Menu" })).toBeDisabled();
 });
