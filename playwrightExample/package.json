@@ -1,0 +1,27 @@
+{
+  "name": "playwrightexample",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "test": "playwright test",
+    "test:coverage": "nyc --reporter=json-summary --reporter=text playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^25.1.0",
+    "nyc": "^17.1.0",
+    "playwright-test-coverage": "^1.2.12",
+    "vite": "^7.3.1",
+    "vite-plugin-istanbul": "^7.2.1"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
