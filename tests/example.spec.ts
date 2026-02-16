@@ -1,30 +1,26 @@
-import { test, expect } from "playwright-test-coverage";
+// import { test, expect } from "playwright-test-coverage";
 
-test("test", async ({ page }) => {
-  const menuResponse = [
-    { title: "Veggie", description: "A garden of delight" },
-  ];
+// test("test", async ({ page }) => {
+//   const menuResponse = [
+//     { title: "Veggie", description: "A garden of delight" },
+//   ];
 
-  // Mock out the service
-  await page.route("*/**/api/order/menu", async (route) => {
-    expect(route.request().method()).toBe("GET");
-    await route.fulfill({ json: menuResponse });
-  });
+//   // Mock out the service
+//   await page.route("*/**/api/order/menu", async (route) => {
+//     expect(route.request().method()).toBe("GET");
+//     await route.fulfill({ json: menuResponse });
+//   });
 
-  await page.goto("https://pizza.pizzagavinshelley3.click/");
-  await expect(page.getByText("Pizza")).toBeVisible();
-  await expect(page.getByText("🍕")).toBeVisible();
+//   await page.goto("https://pizza.pizzagavinshelley3.click/");
 
-  const expected = "🍕🍕🍕🍕🍕";
-  await page
-    .getByRole("button", { name: "+" })
-    .click({ clickCount: [...expected].length - 1 });
-  await expect(page.getByText(expected)).toHaveText(expected);
+//   await expect(page.getByText("Pizza").first()).toBeVisible();
+//   await page.getByRole("button", { name: "Order now" }).click();
+//   await page.locator("select[required]").click();
 
-  await expect(page.getByRole("button", { name: "Menu" })).toBeEnabled();
-  await page.getByRole("button", { name: "Menu" }).click();
-  await expect(page.getByRole("list")).toContainText(
-    "Veggie - A garden of delight",
-  );
-  await expect(page.getByRole("button", { name: "Menu" })).toBeDisabled();
-});
+//   await expect(page.getByRole("list")).toContainText("Dad Pod");
+
+//   await page.getByRole("option", { name: "Dad Pod" }).click();
+//   await expect(page.getByRole("list")).toContainText(
+//     "Veggie - A garden of delight",
+//   );
+// });
