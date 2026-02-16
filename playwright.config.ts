@@ -20,6 +20,11 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// Ensure Vite coverage instrumentation is enabled during Playwright runs.
+if (!("VITE_COVERAGE" in process.env)) {
+  process.env.VITE_COVERAGE = "true";
+}
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -92,8 +97,8 @@ export default defineConfig({
 
   /* Run local frontend so coverage instrumentation applies */
   webServer: {
-    command: "npm run dev -- --host localhost --port 4173",
+    command: "npm run dev -- --host localhost --port 4173 --strictPort",
     url: "http://localhost:4173",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
 });

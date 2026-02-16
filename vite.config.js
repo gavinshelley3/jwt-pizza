@@ -5,9 +5,8 @@ export default defineConfig({
   build: { sourcemap: true },
   plugins: [
     istanbul({
-      include: ["src/**/*"],
       exclude: ["node_modules"],
-      requireEnv: false,
+      requireEnv: true,
     }),
   ],
 });

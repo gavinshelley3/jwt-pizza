@@ -25,6 +25,6 @@ test("purchase with login and verify", async ({ page }) => {
   await page.getByRole("button", { name: "Pay now" }).click();
   await expect(page.getByRole("main")).toContainText("Here is your JWT Pizza!");
   await page.getByRole("button", { name: "Verify" }).click();
-  await expect(page.getByText("valid")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /JWT Pizza - valid/i })).toBeVisible();
   await page.getByRole("button", { name: "Close" }).click();
 });
