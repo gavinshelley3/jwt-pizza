@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import NotFound from './notFound';
 import Button from '../components/button';
 import { pizzaService } from '../service/service';
-import { Franchise, FranchiseList, Role, Store, User } from '../service/pizzaService';
+import { Franchise, FranchiseList, Role, Store, User, UserList } from '../service/pizzaService';
 import { TrashIcon } from '../icons';
 
 interface Props {
@@ -15,13 +15,30 @@ export default function AdminDashboard(props: Props) {
   const navigate = useNavigate();
   const [franchiseList, setFranchiseList] = React.useState<FranchiseList>({ franchises: [], more: false });
   const [franchisePage, setFranchisePage] = React.useState(0);
+  const [userList, setUserList] = React.useState<UserList>({ users: [], more: false });
+  const [userPage, setUserPage] = React.useState(1);
   const filterFranchiseRef = React.useRef<HTMLInputElement>(null);
+  const filterUserRef = React.useRef<HTMLInputElement>(null);
+
+  function userFilterPattern() {
+    const raw = (filterUserRef.current?.value ?? '').trim();
+    return raw.length > 0 ? `*${raw}*` : '*';
+  }
 
   React.useEffect(() => {
     (async () => {
       setFranchiseList(await pizzaService.getFranchises(franchisePage, 3, '*'));
     })();
   }, [props.user, franchisePage]);
+
+  React.useEffect(() => {
+    (async () => {
+      if (!Role.isRole(props.user, Role.Admin)) {
+        return;
+      }
+      setUserList(await pizzaService.getUsers(userPage, 3, userFilterPattern()));
+    })();
+  }, [props.user, userPage]);
 
   function createFranchise() {
     navigate('/admin-dashboard/create-franchise');
@@ -37,6 +54,28 @@ export default function AdminDashboard(props: Props) {
 
   async function filterFranchises() {
     setFranchiseList(await pizzaService.getFranchises(franchisePage, 10, `*${filterFranchiseRef.current?.value}*`));
+  }
+
+  async function filterUsers() {
+    setUserPage(1);
+    setUserList(await pizzaService.getUsers(1, 3, userFilterPattern()));
+  }
+
+  async function listUsers(page: number) {
+    setUserPage(page);
+    setUserList(await pizzaService.getUsers(page, 3, userFilterPattern()));
+  }
+
+  async function deleteUser(user: User) {
+    await pizzaService.deleteUser(user);
+    const refreshed = await pizzaService.getUsers(userPage, 3, userFilterPattern());
+    if (refreshed.users.length === 0 && userPage > 1) {
+      const previousPage = userPage - 1;
+      setUserPage(previousPage);
+      setUserList(await pizzaService.getUsers(previousPage, 3, userFilterPattern()));
+      return;
+    }
+    setUserList(refreshed);
   }
 
   let response = <NotFound />;
@@ -108,6 +147,63 @@ export default function AdminDashboard(props: Props) {
                               «
                             </button>
                             <button className="w-12 p-1 text-sm font-semibold rounded-lg border border-transparent bg-white text-grey border-grey m-1 hover:bg-orange-200 disabled:bg-neutral-300" onClick={() => setFranchisePage(franchisePage + 1)} disabled={!franchiseList.more}>
+                              »
+                            </button>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="text-start py-8 px-4 sm:px-6 lg:px-8">
+          <h3 className="text-neutral-100 text-xl">Users</h3>
+          <div className="bg-neutral-100 overflow-clip my-4">
+            <div className="flex flex-col">
+              <div className="-m-1.5 overflow-x-auto">
+                <div className="p-1.5 min-w-full inline-block align-middle">
+                  <div className="overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="uppercase text-neutral-100 bg-slate-400 border-b-2 border-gray-500">
+                        <tr>
+                          {['Name', 'Email', 'Role', 'Action'].map((header) => (
+                            <th key={header} scope="col" className="px-6 py-3 text-center text-xs font-medium">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {userList.users.map((dashboardUser, index) => (
+                          <tr key={dashboardUser.id ?? index} className="bg-neutral-100 hover:bg-gray-100">
+                            <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{dashboardUser.name}</td>
+                            <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{dashboardUser.email}</td>
+                            <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{dashboardUser.roles?.map((o) => o.role).join(', ')}</td>
+                            <td className="px-6 py-1 whitespace-nowrap text-end text-sm font-medium">
+                              <button type="button" className="px-2 py-1 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-1 border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800 disabled:text-neutral-300 disabled:border-neutral-300" onClick={() => deleteUser(dashboardUser)} disabled={dashboardUser.id === props.user?.id}>
+                                <TrashIcon />
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td className="px-1 py-1">
+                            <input type="text" ref={filterUserRef} name="filterUser" placeholder="Filter users" className="px-2 py-1 text-sm border border-gray-300 rounded-lg" />
+                            <button type="submit" className="ml-2 px-2 py-1 text-sm font-semibold rounded-lg border border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800" onClick={filterUsers}>
+                              Search Users
+                            </button>
+                          </td>
+                          <td colSpan={3} className="text-end text-sm font-medium">
+                            <button aria-label="Previous users page" className="w-12 p-1 text-sm font-semibold rounded-lg border border-transparent bg-white text-grey border-grey m-1 hover:bg-orange-200 disabled:bg-neutral-300" onClick={() => listUsers(userPage - 1)} disabled={userPage <= 1}>
+                              «
+                            </button>
+                            <button aria-label="Next users page" className="w-12 p-1 text-sm font-semibold rounded-lg border border-transparent bg-white text-grey border-grey m-1 hover:bg-orange-200 disabled:bg-neutral-300" onClick={() => listUsers(userPage + 1)} disabled={!userList.more}>
                               »
                             </button>
                           </td>
