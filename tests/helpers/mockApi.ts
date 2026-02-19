@@ -15,7 +15,7 @@ const mockMenu = [
   { id: "2", title: "Pepperoni", image: "pizza2.png", price: 0.0042, description: "Spicy treat" },
 ];
 
-const mockUsers: Record<string, MockUser> = {
+const baseMockUsers: Record<string, MockUser> = {
   "d@jwt.com": {
     id: "3",
     name: "Kai Chen",
@@ -36,6 +36,20 @@ const mockUsers: Record<string, MockUser> = {
     email: "a@jwt.com",
     password: "a",
     roles: [{ role: "admin" }],
+  },
+  "i@jwt.com": {
+    id: "9",
+    name: "Ivy Slice",
+    email: "i@jwt.com",
+    password: "a",
+    roles: [{ role: "diner" }],
+  },
+  "b@jwt.com": {
+    id: "10",
+    name: "Buddy Bread",
+    email: "b@jwt.com",
+    password: "a",
+    roles: [{ role: "diner" }],
   },
 };
 
@@ -60,9 +74,14 @@ function requireMethod(route: Route, method: string) {
 
 export async function basicInit(
   page: Page,
-  options?: { initialUserEmail?: keyof typeof mockUsers; startPath?: string },
+  options?: { initialUserEmail?: keyof typeof baseMockUsers; startPath?: string },
 ) {
-  const initialUser = options?.initialUserEmail ? mockUsers[options.initialUserEmail] : null;
+  const users: MockUser[] = Object.values(baseMockUsers).map((u) => ({
+    ...u,
+    roles: [...u.roles],
+  }));
+
+  const initialUser = options?.initialUserEmail ? users.find((u) => u.email === options.initialUserEmail) ?? null : null;
 
   if (initialUser) {
     await page.addInitScript(() => localStorage.setItem("token", "seed-token"));
@@ -73,6 +92,11 @@ export async function basicInit(
   let loggedInUser: MockUser | null = initialUser;
   let nextOrderId = 21;
   let nextStoreId = 100;
+  let nextUserId = 101;
+
+  function listRole(user: MockUser) {
+    return user.roles[0]?.role ?? "diner";
+  }
 
   const franchiseList = {
     franchises: [
@@ -121,7 +145,7 @@ export async function basicInit(
     const body = route.request().postDataJSON() as Record<string, string>;
 
     if (method === "PUT") {
-      const user = mockUsers[body.email];
+      const user = users.find((u) => u.email === body.email);
       if (!user || body.password !== user.password) {
         await route.fulfill({ status: 401, json: { message: "Unauthorized" } });
         return;
@@ -133,12 +157,13 @@ export async function basicInit(
 
     if (method === "POST") {
       const user: MockUser = {
-        id: "99",
+        id: String(nextUserId++),
         name: body.name,
         email: body.email,
         password: body.password,
         roles: [{ role: "diner" }],
       };
+      users.push(user);
       loggedInUser = user;
       await route.fulfill({ json: { user, token: "token-register" } });
       return;
@@ -150,6 +175,89 @@ export async function basicInit(
   await page.route(/\/api\/user\/me$/, async (route) => {
     requireMethod(route, "GET");
     await route.fulfill({ json: loggedInUser });
+  });
+
+  await page.route(/\/api\/user\?.*$/, async (route) => {
+    requireMethod(route, "GET");
+    const url = new URL(route.request().url());
+    const nameFilter = url.searchParams.get("name") || "*";
+    const normalizedName = nameFilter.replace(/\*/g, "").toLowerCase();
+    const pageNumber = Number(url.searchParams.get("page") || "1");
+    const limit = Number(url.searchParams.get("limit") || "10");
+
+    const filteredUsers = users.filter((u) => {
+      return !normalizedName || u.name.toLowerCase().includes(normalizedName);
+    });
+    const zeroBasedPage = pageNumber <= 0 ? 0 : pageNumber - 1;
+    const start = zeroBasedPage * limit;
+    const pagedUsers = filteredUsers.slice(start, start + limit);
+
+    await route.fulfill({
+      json: {
+        users: pagedUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          roles: u.roles,
+        })),
+        more: start + limit < filteredUsers.length,
+      },
+    });
+  });
+
+  await page.route(/\/api\/user\/(?!me$)[^/?]+$/, async (route) => {
+    const method = route.request().method();
+    const match = route.request().url().match(/\/api\/user\/([^/?]+)/);
+    const userId = match?.[1];
+    const userIndex = users.findIndex((u) => u.id === userId);
+
+    if (method === "DELETE") {
+      if (userIndex >= 0) {
+        const [deleted] = users.splice(userIndex, 1);
+        if (loggedInUser?.id === deleted.id) {
+          loggedInUser = null;
+        }
+      }
+      await route.fulfill({ status: 200, json: {} });
+      return;
+    }
+
+    requireMethod(route, "PUT");
+    if (userIndex < 0) {
+      await route.fulfill({ status: 404, json: { message: "user not found" } });
+      return;
+    }
+
+    const req = route.request().postDataJSON() as {
+      name?: string;
+      email?: string;
+      password?: string;
+      roles?: Array<{ role: Role; objectId?: string }>;
+    };
+    const user = users[userIndex];
+    users[userIndex] = {
+      ...user,
+      name: req.name ?? user.name,
+      email: req.email ?? user.email,
+      password: req.password || user.password,
+      roles: req.roles ?? user.roles,
+    };
+
+    if (loggedInUser?.id === userId) {
+      loggedInUser = users[userIndex];
+    }
+
+    await route.fulfill({
+      json: {
+        user: {
+          id: users[userIndex].id,
+          name: users[userIndex].name,
+          email: users[userIndex].email,
+          roles: users[userIndex].roles,
+        },
+        token: `token-update-${listRole(users[userIndex])}`,
+      },
+    });
   });
 
   await page.route(/\/api\/order\/menu$/, async (route) => {
