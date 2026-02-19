@@ -99,6 +99,6 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --host localhost --port 4173 --strictPort",
     url: "http://localhost:4173",
-    reuseExistingServer: false,
+    reuseExistingServer: true,
   },
 });
