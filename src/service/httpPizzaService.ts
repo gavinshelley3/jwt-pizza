@@ -27,6 +27,12 @@ class HttpPizzaService implements PizzaService {
         // Attach Authorization: Bearer <token> once the user logs in.
         const requestOptions = withAuthHeaders(options);
 
+        if (import.meta.env.DEV) {
+          const headerSnapshot = requestOptions.headers instanceof Headers ? requestOptions.headers : new Headers(requestOptions.headers);
+          const hasAuthHeader = headerSnapshot.has('Authorization');
+          console.debug(`[api] ${method} ${path} auth=${hasAuthHeader ? 'jwt' : 'none'}`);
+        }
+
         const r = await fetch(path, requestOptions);
         const j = await r.json();
         if (r.ok) {
