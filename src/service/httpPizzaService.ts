@@ -1,4 +1,5 @@
 import { PizzaService, Franchise, FranchiseList, Store, OrderHistory, User, UserList, Menu, Order, Endpoints, OrderResponse, JWTPayload } from './pizzaService';
+import { clearAuthToken, getAuthToken, persistAuthToken, withAuthHeaders } from './authenticatedRequest';
 
 const pizzaServiceUrl = import.meta.env.VITE_PIZZA_SERVICE_URL;
 const pizzaFactoryUrl = import.meta.env.VITE_PIZZA_FACTORY_URL;
@@ -7,18 +8,13 @@ class HttpPizzaService implements PizzaService {
   async callEndpoint(path: string, method: string = 'GET', body?: any): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        const options: any = {
+        const options: RequestInit = {
           method: method,
           headers: {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
         };
-
-        const authToken = localStorage.getItem('token');
-        if (authToken) {
-          options.headers['Authorization'] = `Bearer ${authToken}`;
-        }
 
         if (body) {
           options.body = JSON.stringify(body);
@@ -28,7 +24,10 @@ class HttpPizzaService implements PizzaService {
           path = pizzaServiceUrl + path;
         }
 
-        const r = await fetch(path, options);
+        // Attach Authorization: Bearer <token> once the user logs in.
+        const requestOptions = withAuthHeaders(options);
+
+        const r = await fetch(path, requestOptions);
         const j = await r.json();
         if (r.ok) {
           resolve(j);
@@ -43,28 +42,28 @@ class HttpPizzaService implements PizzaService {
 
   async login(email: string, password: string): Promise<User> {
     const { user, token } = await this.callEndpoint('/api/auth', 'PUT', { email, password });
-    localStorage.setItem('token', token);
+    persistAuthToken(token);
     return Promise.resolve(user);
   }
 
   async register(name: string, email: string, password: string): Promise<User> {
     const { user, token } = await this.callEndpoint('/api/auth', 'POST', { name, email, password });
-    localStorage.setItem('token', token);
+    persistAuthToken(token);
     return Promise.resolve(user);
   }
 
   logout(): void {
     this.callEndpoint('/api/auth', 'DELETE');
-    localStorage.removeItem('token');
+    clearAuthToken();
   }
 
   async getUser(): Promise<User | null> {
     let result: User | null = null;
-    if (localStorage.getItem('token')) {
+    if (getAuthToken()) {
       try {
         result = await this.callEndpoint('/api/user/me');
       } catch (e) {
-        localStorage.removeItem('token');
+        clearAuthToken();
       }
     }
     return Promise.resolve(result);
@@ -89,7 +88,7 @@ class HttpPizzaService implements PizzaService {
   async updateUser(updatedUser: User): Promise<User> {
     const response = await this.callEndpoint(`/api/user/${updatedUser.id}`, 'PUT', updatedUser);
     if (response?.token) {
-      localStorage.setItem('token', response.token);
+      persistAuthToken(response.token);
     }
     return Promise.resolve(response?.user ?? response);
   }

@@ -29,6 +29,11 @@ You can see a working example of the application at [pizza.cs329.click](https://
    npm run dev
    ```
 
+## Auth headers & Grafana helper
+
+- All protected API calls now go through `src/service/authenticatedRequest.ts`, which injects `Authorization: Bearer <token>` before `fetch` runs. If you need to hit `/api/*` manually (e.g., via `fetch` in a component or axios), import `withAuthHeaders` from that module so the active user metrics stay accurate.
+- When running `npm run dev`, a small "Grafana helper" widget appears after login (see `src/components/devMetricsPoke.tsx`). It automatically pings `/api/order` once per session and exposes a button so you can manually retrigger authenticated traffic while watching the `active_users` panel.
+
 ## Development notes
 
 JWT Pizza uses Vite, React, Tailwind, and Preline. The following contains some notes about how these components were integrated into the project.

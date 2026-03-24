@@ -22,6 +22,7 @@ import Payment from '../views/payment';
 import NotFound from '../views/notFound';
 import Docs from '../views/docs';
 import Breadcrumb from '../components/breadcrumb';
+import DevMetricsPoke from '../components/devMetricsPoke';
 import { pizzaService } from '../service/service';
 import { Role, User } from '../service/pizzaService';
 import 'preline/preline';
@@ -102,6 +103,7 @@ export default function App() {
       </main>
 
       <Footer navItems={navItems} />
+      <DevMetricsPoke user={user} />
     </div>
   );
 }
