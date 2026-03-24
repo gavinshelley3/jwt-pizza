@@ -20,8 +20,9 @@ class HttpPizzaService implements PizzaService {
           options.body = JSON.stringify(body);
         }
 
-        if (!path.startsWith('http')) {
-          path = pizzaServiceUrl + path;
+        let targetUrl = path;
+        if (!targetUrl.startsWith('http')) {
+          targetUrl = pizzaServiceUrl + targetUrl;
         }
 
         // Attach Authorization: Bearer <token> once the user logs in.
@@ -30,10 +31,10 @@ class HttpPizzaService implements PizzaService {
         if (import.meta.env.DEV) {
           const headerSnapshot = requestOptions.headers instanceof Headers ? requestOptions.headers : new Headers(requestOptions.headers);
           const hasAuthHeader = headerSnapshot.has('Authorization');
-          console.debug(`[api] ${method} ${path} auth=${hasAuthHeader ? 'jwt' : 'none'}`);
+          console.log('[API CALL]', method, targetUrl, 'auth=', hasAuthHeader ? 'jwt' : 'none');
         }
 
-        const r = await fetch(path, requestOptions);
+        const r = await fetch(targetUrl, requestOptions);
         const j = await r.json();
         if (r.ok) {
           resolve(j);

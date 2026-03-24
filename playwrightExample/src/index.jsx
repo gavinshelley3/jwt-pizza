@@ -9,7 +9,7 @@ function App() {
 
   async function getMenu() {
     const response = await fetch(
-      "https://pizza-service.cs329.click/api/order/menu",
+      "https://pizza.pizzagavinshelley3.click/api/order/menu",
     );
     const data = await response.json();
     setMenu(
