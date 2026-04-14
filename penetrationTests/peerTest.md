@@ -47,3 +47,11 @@
 - Description: Based on the exposed API documentation, I identified that the `GET /api/user` endpoint is intended to be admin only. I attempted to access this endpoint using a valid JWT from a normal diner account by sending the request through Burp Suite Repeater. The server returned a 403 unauthorized response, indicating that role-based access control was being enforced correctly. I also tested `/api/user/me`, which returned only my own user data, and attempted `/api/user/1`, which returned a 404, indicating that direct access to other users by ID is not exposed through this route. These results show that the application properly restricts access to sensitive user endpoints.
 - Images: ![PeerAttack5ApiUserMe](image-gavin-17.png) ![PeerAttack5ApiUser](image-gavin-18.png) ![PeerAttack5ApiUser1](image-gavin-19.png)
 - Corrections: No changes required. The application correctly enforces authorization for admin-only endpoints.
+
+## Combined Summary of Learnings
+
+Working through both my own attacks and the peer attacks made it really clear how much security can break down when the backend trusts the client too much. A lot of the issues came from missing validation or authorization checks on the server, even when the frontend looked like it was doing the right thing. Things like empty passwords being accepted, being able to access other users' data by changing IDs, and modifying prices in requests all came down to the same core problem of not enforcing rules on the backend.
+
+It also showed how small oversights, like leaving documentation endpoints public, can make it way easier for someone to understand and attack the system. At the same time, it was interesting to see cases where protections were actually implemented correctly, like the admin-only user endpoints, which helped confirm what secure behavior should look like.
+
+Overall, the biggest takeaway for me is that you can't trust anything coming from the client. All important checks need to happen on the server, and even small gaps can turn into real vulnerabilities pretty quickly.
