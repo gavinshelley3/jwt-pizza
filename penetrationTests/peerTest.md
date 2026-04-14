@@ -102,6 +102,112 @@
 - Images: ![PeerAttack5ApiUserMe](image-gavin-17.png) ![PeerAttack5ApiUser](image-gavin-18.png) ![PeerAttack5ApiUser1](image-gavin-19.png)
 - Corrections: No changes required. The application correctly enforces authorization for admin-only endpoints.
 
+# Chloe's Personal Attacks
+
+## Attack 1 - Brute Force Password Attack
+
+- Date: April 8, 2026
+- Target: https://pizza-service.devops-cwarner.click/api/auth
+- Classification: Identification and Authentication Failures
+- Severity: 2
+- Description: I used Burp Suite Intruder to run a brute force attack against the login endpoint with a list of 7 common passwords. One of the attempts — using the password "admin" — came back with a 200 OK response. That turned out to be the actual admin password. There was no account lockout in place and the default credentials had never been changed, so it only took a few guesses to get in.
+- Images: ![Brute force results](test1.png)
+- Corrections: I set up account lockout after 3 failed login attempts to prevent brute force. I also changed the default admin password to a strong, randomly generated one.
+
+## Attack 2 - JWT Tampering
+
+- Date: April 8, 2026
+- Target: https://pizza-service.devops-cwarner.click
+- Classification: Cryptographic Failures
+- Severity: 0
+- Description: I grabbed a valid JWT from the browser, decoded it using Burp Suite's decoder, and changed the role field from "diner" to "admin". I then re-sent the modified token to the server. The server returned a 401 Unauthorized — it detected the invalid signature and rejected the token. The server is correctly verifying JWT signatures, so this attack did not work.
+- Images: ![JWT tampering](image.png)
+- Corrections: None needed. JWT signature verification is working correctly.
+
+## Attack 3 - Token Randomness (Sequencer)
+
+- Date: April 8, 2026
+- Target: https://pizza-service.devops-cwarner.click
+- Classification: Cryptographic Failures
+- Severity: 0
+- Description: I used Burp Suite's Sequencer tool to capture 102 JWT tokens and analyze their entropy. The analysis reported approximately 28 bits of effective randomness, which is sufficient to prevent token prediction or forgery. However, the flood of login requests generated during token collection caused a noticeable spike in my Grafana monitoring dashboard, which indicated the absence of rate limiting.
+- Images: ![Sequencer results](image-1.png) ![Grafana spike](image-2.png)
+- Corrections: I added rate limiting using express-rate-limit with a maximum of 50 requests per 15 minutes per IP address. After the fix, I confirmed the spike no longer appeared in Grafana under the same load.
+
+## Attack 4 - SQL Injection / Stack Trace Exposure
+
+- Date: April 8, 2026
+- Target: https://pizza-service.devops-cwarner.click/api/auth
+- Classification: Security Misconfiguration
+- Severity: 1
+- Description: I submitted a classic SQL injection string (' OR '1'='1) in the email field of the login endpoint. The injection itself did not work — the application uses parameterized queries, so the input was treated as a literal string. However, the server's error response included a full stack trace with internal file paths and line numbers, which would give an attacker useful information about the application's internals even when the primary attack fails.
+- Images: ![Stack trace exposure](image-3.png)
+- Corrections: I updated the error handler to strip stack traces from production responses. Stack traces are still logged server-side for debugging but are no longer returned to clients.
+
+## Attack 5 - Broken Access Control (Franchise Deletion)
+
+- Date: April 8, 2026
+- Target: https://pizza-service.devops-cwarner.click
+- Classification: Broken Access Control
+- Severity: 3
+- Description: I logged in as a regular diner account and sent a DELETE request to /api/franchise/1 using Burp Suite Repeater. The server responded with {"message":"franchise deleted"} — the franchise was actually deleted. There was no admin role check on that endpoint at all, meaning any authenticated user could delete any franchise just by crafting a direct DELETE request.
+- Images: ![Franchise deletion](image-4.png)
+- Corrections: I added an admin role check to the franchise delete endpoint so that only users with the admin role can perform deletions. After the fix, I resent the same request as a diner and confirmed the server returned a 403 Unauthorized.
+
+# Chloe's Attacks on Gavin
+
+## Attack 1 — Brute Force Password Attack
+
+- Date: April 12, 2026
+- Target: https://pizza.pizzagavinshelley3.click
+- Classification: Identification and Authentication Failures
+- Severity: 0
+- Description: I used Burp Suite Intruder to send over 30 password guesses against Gavin's login endpoint, including common passwords, name variations, BYU-themed guesses, and food-related words. None of the attempts succeeded. No weak or default credentials were found on this site.
+- Images: ![Brute force results](peer_attack1.png)
+- Corrections: N/A
+
+## Attack 2 — Broken Access Control (Franchise Deletion)
+
+- Date: April 12, 2026
+- Target: https://pizza-service.pizzagavinshelley3.click
+- Classification: Broken Access Control
+- Severity: 3
+- Description: I ran the same attack I had found on my own site. After logging in as a regular diner and capturing my JWT, I sent a DELETE request to /api/franchise/14 using Burp Suite Repeater. The server responded with {"message":"franchise deleted"}. The endpoint does not verify whether the requesting user has admin privileges before allowing the deletion. Any authenticated user can delete any franchise just by crafting a direct DELETE request to that endpoint.
+- Images: ![Franchise deletion](peer_attack2.png)
+- Corrections: He needs to add proper authorization checks on the backend to make sure only admins can delete franchises. Right now, the server only checks if the user is logged in, not their role, which is why any user can send a DELETE request and remove a franchise. He should verify the user’s role from the JWT before allowing the action and return an error if they don’t have permission.
+
+## Attack 3 — Input Sanitization / Injection
+
+- Date: April 12, 2026
+- Target: https://pizza-service.pizzagavinshelley3.click/api/auth
+- Classification: Injection
+- Severity: 1
+- Description: I sent ' OR '1'='1 as the email value on the registration endpoint. The SQL injection itself did not succeed, but the server accepted the request without any validation and created an account using that string as the email address. There is no server-side email format validation on the registration endpoint, meaning arbitrary strings can be registered as emails.
+- Images: ![SQL injection attempt](peer_attack3.png)
+- Corrections: He needs to add server-side validation so the email has to be in a real format instead of accepting anything. He should also check and clean all user inputs and use parameterized queries to avoid SQL injection. Right now the server trusts input too much and should return an error when the data is invalid.
+
+## Attack 4 — IDOR (Insecure Direct Object Reference)
+
+- Date: April 12, 2026
+- Target: https://pizza-service.pizzagavinshelley3.click/api/order
+- Classification: Broken Access Control
+- Severity: 0
+- Description: I attempted to access other users' orders by appending ?userId=1 to the GET /api/order request. The server ignored the parameter entirely and returned only my own orders. The endpoint appears to be correctly scoped to the authenticated user regardless of any query parameters provided.
+- Images: ![IDOR attempt](peer_attack4.png)
+- Corrections: N/A
+
+## Attack 5 — Token Randomness (Sequencer)
+
+- Date: April 12, 2026
+- Target: https://pizza-service.pizzagavinshelley3.click
+- Classification: Cryptographic Failures
+- Severity: 0
+- Description: I captured 101 tokens using Burp Suite Sequencer and analyzed their entropy. The tool rated the entropy at 200 bits with a result of "excellent." The tokens are effectively random and cannot be predicted or forged. Token generation on Gavin's site is secure.
+- Images: ![Sequencer results](peer_attack5.png)
+- Corrections: N/A
+
+# Summary of Learnings
+
 ## Gavin's Summary of Learnings
 
 Working through both my own attacks and the peer attacks made it really clear how much security can break down when the backend trusts the client too much. A lot of the issues came from missing validation or authorization checks on the server, even when the frontend looked like it was doing the right thing. Things like empty passwords being accepted, being able to access other users' data by changing IDs, and modifying prices in requests all came down to the same core problem of not enforcing rules on the backend.
@@ -109,3 +215,11 @@ Working through both my own attacks and the peer attacks made it really clear ho
 It also showed how small oversights, like leaving documentation endpoints public, can make it way easier for someone to understand and attack the system. At the same time, it was interesting to see cases where protections were actually implemented correctly, like the admin-only user endpoints, which helped confirm what secure behavior should look like.
 
 Overall, the biggest takeaway for me is that you can't trust anything coming from the client. All important checks need to happen on the server, and even small gaps can turn into real vulnerabilities pretty quickly.
+
+## Chloe's Summary of Learnings
+
+Working through both my own site and Gavin's made it clear how quickly small gaps turn into real vulnerabilities. The most serious issue I found on both sites was the same one: the franchise delete endpoint had no admin check at all. Any logged-in user could delete any franchise just by crafting a direct API request. It did not matter what the UI showed or what role the account had because the backend did not check.
+
+The brute force attack on my own site was another example of the same pattern. The default admin password had never been changed and there was no lockout after failed attempts, so it only took a few guesses. Seeing that Gavin's site resisted the same attack amking it clear that using strong passwords, rate limiting, account lockout works and needs to be implimented.
+
+The biggest takeaway is that security needs to be enforced on the server. Frontend validation, default behaviors, and what the UI allows so not matter if the backend does not check. Every critical operation and even small ones need authentication, authorization, validation and permissions.
